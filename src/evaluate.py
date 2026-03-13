@@ -1,39 +1,14 @@
-# [VALIDATOR FIX - Attempt 1]
-# [PROBLEM]: evaluate.py expects argparse-style arguments (--results_dir, --run_ids) but workflow calls it with Hydra-style arguments (results_dir=, run_ids=)
-# [CAUSE]: The workflow at .github/workflows/run_visualization.yml passes arguments as Hydra-style (key=value) but evaluate.py uses argparse which expects --key value format
-# [FIX]: Convert evaluate.py to use Hydra configuration like main.py does, making it consistent with the rest of the codebase
+# [VALIDATOR FIX - Attempt 2]
+# [PROBLEM]: Hydra with config_path=None cannot override keys - workflow passes results_dir=... but Hydra says "Key 'results_dir' is not in struct"
+# [CAUSE]: Previous attempt (Attempt 1) converted from argparse to Hydra but used config_path=None without defining config structure. When config_path=None, Hydra requires either +key=value syntax or a ConfigStore registration to define valid keys.
+# [FIX]: Add a ConfigStore registration with a dataclass to define the expected config structure (results_dir, run_ids) so Hydra accepts key=value overrides without +.
 #
-# [OLD CODE]:
-# """Evaluation script for analyzing and comparing experiment results."""
-#
-# import argparse
-# import json
-# import os
-# from pathlib import Path
-# from typing import Dict, List, Any
-#
-# import matplotlib
-#
-# matplotlib.use("Agg")  # Non-interactive backend
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import seaborn as sns
-# import wandb
-#
-#
-# def main():
-#     """Main evaluation function."""
-#     parser = argparse.ArgumentParser(description="Evaluate experiment results")
-#     parser.add_argument(
-#         "--results_dir", type=str, required=True, help="Results directory"
-#     )
-#     parser.add_argument(
-#         "--run_ids", type=str, required=True, help="JSON list of run IDs"
-#     )
-#     args = parser.parse_args()
-#
-#     results_dir = Path(args.results_dir)
-#     run_ids = json.loads(args.run_ids)
+# [OLD CODE from Attempt 1]:
+# @hydra.main(version_base=None, config_path=None)
+# def main(cfg: DictConfig) -> None:
+#     results_dir = Path(cfg.results_dir)
+#     if isinstance(cfg.run_ids, str):
+#         run_ids = json.loads(cfg.run_ids)
 #
 # [NEW CODE]:
 """Evaluation script for analyzing and comparing experiment results."""
@@ -42,9 +17,12 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, List, Any
+import sys
 
 import hydra
-from omegaconf import DictConfig
+from hydra.core.config_store import ConfigStore
+from omegaconf import DictConfig, OmegaConf
+from dataclasses import dataclass
 import matplotlib
 
 matplotlib.use("Agg")  # Non-interactive backend
@@ -54,7 +32,20 @@ import seaborn as sns
 import wandb
 
 
-@hydra.main(version_base=None, config_path=None)
+@dataclass
+class EvaluateConfig:
+    """Configuration for evaluation script."""
+
+    results_dir: str = ".research/results"
+    run_ids: str = "[]"
+
+
+# Register config schema
+cs = ConfigStore.instance()
+cs.store(name="config", node=EvaluateConfig)
+
+
+@hydra.main(version_base=None, config_path=None, config_name="config")
 def main(cfg: DictConfig) -> None:
     """Main evaluation function."""
     # Config will be passed entirely via command line
