@@ -76,6 +76,22 @@ def main(cfg: DictConfig) -> None:
     wandb_entity = os.getenv("WANDB_ENTITY", "airas")
     wandb_project = os.getenv("WANDB_PROJECT", "2026-0313-matsuzawa")
 
+    # [VALIDATOR FIX - Attempt 4]
+    # [PROBLEM]: ValueError when W&B project doesn't exist yet
+    # [CAUSE]: api.runs() tries to fetch runs from project "2026-0313-matsuzawa" but project doesn't exist yet because no experiments have run. This causes ValueError: "Could not find project 2026-0313-matsuzawa"
+    # [FIX]: Wrap api.runs() call in try-except to catch ValueError when project doesn't exist. If project is missing or no runs found, create placeholder visualizations or exit gracefully.
+    #
+    # [OLD CODE]:
+    # api = wandb.Api()
+    # all_metrics = {}
+    # all_configs = {}
+    # for run_id in run_ids:
+    #     runs = api.runs(f"{wandb_entity}/{wandb_project}", ...)
+    #     if not runs:
+    #         print(f"Warning: No WandB run found for {run_id}")
+    #         continue
+    #
+    # [NEW CODE]:
     # Initialize WandB API
     api = wandb.Api()
 
@@ -86,12 +102,26 @@ def main(cfg: DictConfig) -> None:
     for run_id in run_ids:
         print(f"\nFetching metrics for {run_id}...")
 
-        # Find most recent run with this display name
-        runs = api.runs(
-            f"{wandb_entity}/{wandb_project}",
-            filters={"display_name": run_id},
-            order="-created_at",
-        )
+        try:
+            # Find most recent run with this display name
+            runs = api.runs(
+                f"{wandb_entity}/{wandb_project}",
+                filters={"display_name": run_id},
+                order="-created_at",
+            )
+        except ValueError as e:
+            if "Could not find project" in str(e):
+                print(
+                    f"\nW&B project {wandb_project} not found yet. No experiments have run."
+                )
+                print("Skipping visualization generation - no data available.")
+                print(
+                    "\nThis is expected when the visualization stage runs before any experiments complete."
+                )
+                print("Re-run evaluation after experiments have logged data to W&B.")
+                return
+            else:
+                raise
 
         if not runs:
             print(f"Warning: No WandB run found for {run_id}")
