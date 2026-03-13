@@ -1,11 +1,50 @@
+# [VALIDATOR FIX - Attempt 1]
+# [PROBLEM]: evaluate.py expects argparse-style arguments (--results_dir, --run_ids) but workflow calls it with Hydra-style arguments (results_dir=, run_ids=)
+# [CAUSE]: The workflow at .github/workflows/run_visualization.yml passes arguments as Hydra-style (key=value) but evaluate.py uses argparse which expects --key value format
+# [FIX]: Convert evaluate.py to use Hydra configuration like main.py does, making it consistent with the rest of the codebase
+#
+# [OLD CODE]:
+# """Evaluation script for analyzing and comparing experiment results."""
+#
+# import argparse
+# import json
+# import os
+# from pathlib import Path
+# from typing import Dict, List, Any
+#
+# import matplotlib
+#
+# matplotlib.use("Agg")  # Non-interactive backend
+# import matplotlib.pyplot as plt
+# import numpy as np
+# import seaborn as sns
+# import wandb
+#
+#
+# def main():
+#     """Main evaluation function."""
+#     parser = argparse.ArgumentParser(description="Evaluate experiment results")
+#     parser.add_argument(
+#         "--results_dir", type=str, required=True, help="Results directory"
+#     )
+#     parser.add_argument(
+#         "--run_ids", type=str, required=True, help="JSON list of run IDs"
+#     )
+#     args = parser.parse_args()
+#
+#     results_dir = Path(args.results_dir)
+#     run_ids = json.loads(args.run_ids)
+#
+# [NEW CODE]:
 """Evaluation script for analyzing and comparing experiment results."""
 
-import argparse
 import json
 import os
 from pathlib import Path
 from typing import Dict, List, Any
 
+import hydra
+from omegaconf import DictConfig
 import matplotlib
 
 matplotlib.use("Agg")  # Non-interactive backend
@@ -15,19 +54,16 @@ import seaborn as sns
 import wandb
 
 
-def main():
+@hydra.main(version_base=None, config_path=None)
+def main(cfg: DictConfig) -> None:
     """Main evaluation function."""
-    parser = argparse.ArgumentParser(description="Evaluate experiment results")
-    parser.add_argument(
-        "--results_dir", type=str, required=True, help="Results directory"
-    )
-    parser.add_argument(
-        "--run_ids", type=str, required=True, help="JSON list of run IDs"
-    )
-    args = parser.parse_args()
-
-    results_dir = Path(args.results_dir)
-    run_ids = json.loads(args.run_ids)
+    # Config will be passed entirely via command line
+    results_dir = Path(cfg.results_dir)
+    # Handle run_ids as either a string (JSON) or a list
+    if isinstance(cfg.run_ids, str):
+        run_ids = json.loads(cfg.run_ids)
+    else:
+        run_ids = list(cfg.run_ids)
 
     print(f"Evaluating {len(run_ids)} runs: {run_ids}")
     print(f"Results directory: {results_dir}")
