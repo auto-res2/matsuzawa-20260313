@@ -1,0 +1,38 @@
+# Baseline 2: Concise Chain-of-Thought
+# Brevity without adaptive budgeting or verification
+
+run_id: comparative-2-gsm8k
+
+method:
+  type: concise-cot
+  name: Concise Chain-of-Thought
+  description: |
+    Concise CoT prompting that encourages brevity but lacks adaptive
+    reasoning depth allocation and verification step.
+  
+  prompt_template: |
+    Solve the following math word problem. Be concise and efficient.
+    Show only essential reasoning steps and provide the final numerical answer.
+    
+    Problem: {question}
+    
+    Think step by step, but keep each step brief and to the point.
+    
+    ANSWER: [your final numerical answer]
+
+dataset:
+  name: gsm8k
+  split: test
+  max_samples: 200
+  subset_seed: 42
+
+model:
+  provider: openai
+  name: gpt-3.5-turbo
+  temperature: 0.0
+  max_tokens: 512
+  
+inference:
+  batch_size: 1
+  cache_responses: true
+  extract_answer_pattern: "ANSWER:\\s*([0-9,\\.]+)"

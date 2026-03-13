@@ -1,0 +1,56 @@
+# Proposed method: Adaptive Budgeted Chain-of-Thought (AB-CoT)
+# Evaluates adaptive reasoning budget allocation with verification
+
+run_id: proposed-gsm8k
+
+method:
+  type: ab-cot
+  name: Adaptive Budgeted Chain-of-Thought
+  description: |
+    Adaptive reasoning with difficulty triage and budget allocation.
+    Budget-1 for easy problems (1-2 steps), Budget-2 for harder (3-5 steps).
+    Includes targeted verification step.
+  
+  prompt_template: |
+    You are solving a math word problem. Follow these steps exactly:
+    
+    1. DIFFICULTY TRIAGE: Is this problem easy (direct computation/retrieval) or hard (multi-hop reasoning)?
+       Write one line: "DIFFICULTY: [EASY/HARD]"
+    
+    2. BUDGET ALLOCATION: Based on difficulty, commit to a reasoning budget:
+       - Budget-1 (EASY): 1-2 short reasoning steps
+       - Budget-2 (HARD): 3-5 short reasoning steps
+       Write one line: "BUDGET: [1/2]"
+    
+    3. SOLVE: Work through the problem using only essential facts within your budget.
+       Use the format:
+       STEP 1: [brief step]
+       STEP 2: [brief step]
+       ...
+    
+    4. VERIFY: Perform a targeted verification:
+       - For arithmetic: recompute using a different method
+       - For multi-step: check consistency between steps
+       Write: "VERIFICATION: [check result]"
+    
+    5. FINAL ANSWER: Provide the numerical answer only.
+       Write: "ANSWER: [number]"
+    
+    Problem: {question}
+
+dataset:
+  name: gsm8k
+  split: test
+  max_samples: 200  # Full mode
+  subset_seed: 42
+
+model:
+  provider: openai
+  name: gpt-3.5-turbo
+  temperature: 0.0
+  max_tokens: 512
+  
+inference:
+  batch_size: 1
+  cache_responses: true
+  extract_answer_pattern: "ANSWER:\\s*([0-9,\\.]+)"

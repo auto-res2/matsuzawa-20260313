@@ -1,0 +1,38 @@
+# Baseline 1: Standard Chain-of-Thought
+# Fixed reasoning style without adaptation or verification
+
+run_id: comparative-1-gsm8k
+
+method:
+  type: standard-cot
+  name: Standard Chain-of-Thought
+  description: |
+    Standard CoT prompting without adaptation or explicit verification.
+    Model generates reasoning steps freely without budget constraints.
+  
+  prompt_template: |
+    Solve the following math word problem step by step.
+    Show your reasoning and provide the final numerical answer.
+    
+    Problem: {question}
+    
+    Let's think step by step and then provide the final answer.
+    
+    ANSWER: [your final numerical answer]
+
+dataset:
+  name: gsm8k
+  split: test
+  max_samples: 200
+  subset_seed: 42
+
+model:
+  provider: openai
+  name: gpt-3.5-turbo
+  temperature: 0.0
+  max_tokens: 512
+  
+inference:
+  batch_size: 1
+  cache_responses: true
+  extract_answer_pattern: "ANSWER:\\s*([0-9,\\.]+)"
