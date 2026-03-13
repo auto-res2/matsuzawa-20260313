@@ -99,6 +99,23 @@ def main(cfg: DictConfig) -> None:
     all_metrics = {}
     all_configs = {}
 
+    # [VALIDATOR FIX - Attempt 5]
+    # [PROBLEM]: ValueError still raised when checking "if not runs:" because __len__ is called on lazy paginator
+    # [CAUSE]: The try-except in Attempt 4 wraps api.runs() call but not the subsequent "if not runs:" check. When Python evaluates the truthiness of runs object, it calls __len__() on the W&B Runs paginator, which internally calls _load_page() that raises ValueError when project doesn't exist. The exception escapes the try block.
+    # [FIX]: Move the "if not runs:" check inside the try-except block so both api.runs() and the truthiness check are protected. Also catch the exception at the point where it actually occurs.
+    #
+    # [OLD CODE]:
+    # for run_id in run_ids:
+    #     print(f"\nFetching metrics for {run_id}...")
+    #     try:
+    #         runs = api.runs(...)
+    #     except ValueError as e:
+    #         ...
+    #     if not runs:  # <-- This triggers __len__() which raises ValueError
+    #         print(f"Warning: No WandB run found for {run_id}")
+    #         continue
+    #
+    # [NEW CODE]:
     for run_id in run_ids:
         print(f"\nFetching metrics for {run_id}...")
 
@@ -109,6 +126,12 @@ def main(cfg: DictConfig) -> None:
                 filters={"display_name": run_id},
                 order="-created_at",
             )
+
+            # Check if runs exist (this may trigger lazy loading and raise ValueError)
+            if not runs:
+                print(f"Warning: No WandB run found for {run_id}")
+                continue
+
         except ValueError as e:
             if "Could not find project" in str(e):
                 print(
@@ -122,10 +145,6 @@ def main(cfg: DictConfig) -> None:
                 return
             else:
                 raise
-
-        if not runs:
-            print(f"Warning: No WandB run found for {run_id}")
-            continue
 
         run = runs[0]
 
