@@ -22,7 +22,7 @@ import sys
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import matplotlib
 
 matplotlib.use("Agg")  # Non-interactive backend
@@ -32,12 +32,25 @@ import seaborn as sns
 import wandb
 
 
+# [VALIDATOR FIX - Attempt 3]
+# [PROBLEM]: Hydra cannot convert list to string when run_ids is passed as a list from command line
+# [CAUSE]: EvaluateConfig.run_ids is typed as str, but the command line passes it as a list: run_ids='["run1", "run2"]'. Hydra parses this as a Python list and then tries to merge it with the string default, causing a type conversion error.
+# [FIX]: Change run_ids type from str to List[str] with proper default value so Hydra can accept list overrides directly without needing JSON string parsing.
+#
+# [OLD CODE]:
+# @dataclass
+# class EvaluateConfig:
+#     """Configuration for evaluation script."""
+#     results_dir: str = ".research/results"
+#     run_ids: str = "[]"
+#
+# [NEW CODE]:
 @dataclass
 class EvaluateConfig:
     """Configuration for evaluation script."""
 
     results_dir: str = ".research/results"
-    run_ids: str = "[]"
+    run_ids: List[str] = field(default_factory=list)
 
 
 # Register config schema
