@@ -187,16 +187,57 @@ def extract_answer(text: str, pattern: str) -> str:
     Returns:
         Extracted answer
     """
-    # Try pattern match first
-    match = re.search(pattern, text, re.IGNORECASE)
-    if match:
-        answer = match.group(1)
-        return normalize_answer(answer)
+    # [VALIDATOR FIX - Attempt 1]
+    # [PROBLEM]: Predicted answers were being extracted as "." instead of actual numbers
+    # [CAUSE]: The fallback regex ([0-9,\.]+) was matching individual characters. Also, the pattern only looked for "ANSWER:" but models output "Final Answer:" or no marker.
+    # [FIX]:
+    #   1. Try multiple common answer patterns (ANSWER:, Final Answer:, Therefore, etc.)
+    #   2. Fixed fallback regex to match complete numbers with optional commas/decimals
+    #   3. Filter out numbers that are just punctuation
+    #
+    # [OLD CODE]:
+    # # Try pattern match first
+    # match = re.search(pattern, text, re.IGNORECASE)
+    # if match:
+    #     answer = match.group(1)
+    #     return normalize_answer(answer)
+    #
+    # # Fallback: look for last number in text
+    # numbers = re.findall(r"([0-9,\.]+)", text)
+    # if numbers:
+    #     return normalize_answer(numbers[-1])
+    #
+    # return ""
+    #
+    # [NEW CODE]:
 
-    # Fallback: look for last number in text
-    numbers = re.findall(r"([0-9,\.]+)", text)
+    # Try multiple answer patterns in order of specificity
+    answer_patterns = [
+        pattern,  # User-specified pattern
+        r"ANSWER:\s*\[?([0-9,\.]+)\]?",  # ANSWER: [number] or ANSWER: number
+        r"Final (?:Answer|answer):\s*[^\d]*?(?:\$)?([0-9,]+(?:\.[0-9]+)?)",  # Final Answer: ... number (greedy for any text before number)
+        r"Therefore[^\.]*?(?:is |are |be |remaining|total|altogether)[^\d]*?(?:\$)?([0-9,]+(?:\.[0-9]+)?)",  # Therefore ... is/are/remaining X
+        r"(?:answer|total|result) is (?:\$)?([0-9,\.]+)",  # answer is X
+    ]
+
+    for ptn in answer_patterns:
+        match = re.search(ptn, text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            answer = match.group(1)
+            # Skip if it's just punctuation
+            if answer and answer != "." and any(c.isdigit() for c in answer):
+                return normalize_answer(answer)
+
+    # Fallback: look for last number in text (complete numbers only)
+    # Match sequences of digits with optional commas and at most one decimal point
+    numbers = re.findall(r"\b([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\b", text)
     if numbers:
-        return normalize_answer(numbers[-1])
+        # Filter out standalone periods and very small decimals that are likely sentence endings
+        valid_numbers = [
+            n for n in numbers if n != "." and not (n.startswith(".") and len(n) <= 2)
+        ]
+        if valid_numbers:
+            return normalize_answer(valid_numbers[-1])
 
     return ""
 
