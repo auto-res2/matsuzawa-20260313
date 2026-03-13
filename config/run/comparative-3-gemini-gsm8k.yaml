@@ -1,0 +1,26 @@
+# Comparative method 3: Static Concise CoT
+run_id: comparative-3-gemini-gsm8k
+
+method:
+  name: static-concise-cot
+  type: comparative
+  index: 3
+  description: "Static concise Chain-of-Thought with fixed brevity instruction"
+
+model:
+  name: gemini-pro
+  api_provider: google
+  temperature: 0.0
+  max_tokens: 512
+  top_p: 1.0
+
+dataset:
+  name: gsm8k
+  split: test
+  subset: main
+
+inference:
+  max_samples: null  # full dataset in full mode
+  prompt_template: static_concise_cot
+  batch_size: 1
+  save_outputs: true

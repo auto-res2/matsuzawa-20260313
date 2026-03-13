@@ -1,0 +1,26 @@
+# Comparative method 2: Direct Answer
+run_id: comparative-2-gemini-gsm8k
+
+method:
+  name: direct-answer
+  type: comparative
+  index: 2
+  description: "Direct answer without reasoning steps"
+
+model:
+  name: gemini-pro
+  api_provider: google
+  temperature: 0.0
+  max_tokens: 128
+  top_p: 1.0
+
+dataset:
+  name: gsm8k
+  split: test
+  subset: main
+
+inference:
+  max_samples: null  # full dataset in full mode
+  prompt_template: direct_answer
+  batch_size: 1
+  save_outputs: true
