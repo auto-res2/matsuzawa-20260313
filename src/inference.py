@@ -187,6 +187,29 @@ def extract_answer(text: str, pattern: str) -> str:
     Returns:
         Extracted answer
     """
+    # [VALIDATOR FIX - Attempt 1]
+    # [PROBLEM]: Answer extraction failing - extracting "." instead of numbers
+    # [CAUSE]: Fallback regex r"([0-9,\.]+)" matches individual punctuation marks
+    #          like "." or "," as valid matches. When the model writes "Final Answer: ... puzzle."
+    #          the last "match" is the period at the end.
+    # [FIX]: Changed fallback regex to r"\b(\d+(?:,\d{3})*(?:\.\d+)?)\b" which only matches
+    #        proper numbers like "123", "1,234", "12.5", "1,234.56" and not standalone punctuation.
+    #
+    # [OLD CODE]:
+    # # Try pattern match first
+    # match = re.search(pattern, text, re.IGNORECASE)
+    # if match:
+    #     answer = match.group(1)
+    #     return normalize_answer(answer)
+    #
+    # # Fallback: look for last number in text
+    # numbers = re.findall(r"([0-9,\.]+)", text)
+    # if numbers:
+    #     return normalize_answer(numbers[-1])
+    #
+    # return ""
+    #
+    # [NEW CODE]:
     # Try pattern match first
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
@@ -194,7 +217,8 @@ def extract_answer(text: str, pattern: str) -> str:
         return normalize_answer(answer)
 
     # Fallback: look for last number in text
-    numbers = re.findall(r"([0-9,\.]+)", text)
+    # Match proper numbers: integers, decimals, and numbers with thousand separators
+    numbers = re.findall(r"\b(\d+(?:,\d{3})*(?:\.\d+)?)\b", text)
     if numbers:
         return normalize_answer(numbers[-1])
 
